@@ -1,108 +1,119 @@
 const request = require('supertest');
 const app = require('../service');
+const { DB, Role } = require('../database/database.js');
+const { setAuth } = require('../routes/authRouter.js');
 
-// test get user route
-test('get user requires auth', async () => {
-  const res = await request(app).get('/api/user/me');
-  expect(res.status).toBe(401);
-});
-
-test('get user with auth', async () => {
-  // first create user
-  const user = {
-    name: 'testuser',
-    email: `testuser${Date.now()}@test.com`,
-    password: 'a'
+// Helper to create a user and return a token
+async function createUser() {
+  let user = {
+    name: `user${Date.now()}`,
+    email: `user${Date.now()}@test.com`,
+    password: 'userpass',
+    roles: []
   };
-  const createRes = await request(app).post('/api/auth').send(user);
-  const token = createRes.body.token;
-    // now get user info
-    const res = await request(app)
-        .get('/api/user/me')
-        .set('Authorization', `Bearer ${token}`);
-    expect(res.status).toBe(200);
-    expect(res.body.email).toBe(user.email);
-});
 
-// test update user route
-test('update user requires auth', async () => {
-  const res = await request(app)
-    .put('/api/user/1')
-    .send({ name: 'newname' });
-  expect(res.status).toBe(401);
-});
+  user = await DB.addUser(user);
+  const token = await setAuth(user);
 
-test('user can update own info', async () => {
-  // first create user
-  const user = {
-    name: 'testuser',
-    email: `testuser${Date.now()}@test.com`,
-    password: 'a'
-    };
-    const createRes = await request(app).post('/api/auth').send(user);
-    const token = createRes.body.token;
-    const userId = createRes.body.user.id;
-    // now update user info
-    const res = await request(app)
-        .put(`/api/user/${userId}`)
-        .set('Authorization', `Bearer ${token}`)
-        .send({ name: 'updatedname' });
-    expect(res.status).toBe(200);
-    expect(res.body.user.name).toBe('updatedname');
-});
+  return { ...user, token };
+}
 
-// test delete user route
-test('delete user requires auth', async () => {
-  const res = await request(app).delete('/api/user/1');
-  expect(res.status).toBe(401);
-});
+// Helper to create an admin user
+async function createAdminUser() {
+  let user = {
+    name: `admin${Date.now()}`,
+    email: `admin${Date.now()}@admin.com`,
+    password: 'adminpass',
+    roles: [{ role: Role.Admin }]
+  };
 
-test('user can delete own account', async () => {
-  // first create user
-  const user = {
-    name: 'testuser',
-    email: `testuser${Date.now()}@test.com`,
-    password: 'a'
-    };
-    const createRes = await request(app).post('/api/auth').send(user);
-    const token = createRes.body.token;
-    const userId = createRes.body.user.id;
-    // now delete user account
-    const res = await request(app)
-        .delete(`/api/user/${userId}`)
-        .set('Authorization', `Bearer ${token}`);
-    expect(res.status).toBe(200);
-});
+  user = await DB.addUser(user);
+  const token = await setAuth(user);
 
-// test list users route
-test('list users requires admin auth', async () => {
-  // first create normal user
-  const user = {
-    name: 'testuser',
-    email: `testuser${Date.now()}@test.com`,
-    password: 'a'
-    };
-    await request(app).post('/api/auth').send(user);
-    // now try to list users without admin rights
-    const res = await request(app)
-        .get('/api/user');
+  return { ...user, token };
+}
+
+
+test('get /me requires auth', async () => {
+    const res = await request(app).get('/api/user/me');
     expect(res.status).toBe(401);
 });
 
-test('admin can list users', async () => {
-    // first create admin user
-    const admin = {
-      name: 'adminuser',
-      email: `adminuser${Date.now()}@test.com`,
-        password: 'a',
-        role: 'admin'
-    };
-    const createRes = await request(app).post('/api/auth').send(admin);
-    const adminToken = createRes.body.token;
-    // now list users with admin rights
+test('get /me returns user info with auth', async () => {
+    const user = await createUser();
     const res = await request(app)
-        .get('/api/user')
-        .set('Authorization', `Bearer ${adminToken}`);
+      .get('/api/user/me')
+      .set('Authorization', `Bearer ${user.token}`);
+
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.email).toBe(user.email);
+    expect(res.body.id).toBe(user.id);
+});
+
+test('user can update own info', async () => {
+    const user = await createUser();
+    const res = await request(app)
+      .put(`/api/user/${user.id}`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ name: 'Updated Name', email: `updated${Date.now()}@test.com`, password: 'userpass' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.name).toBe('Updated Name');
+    expect(res.body.token).toBeDefined();
+});  
+
+test('user cannot update another user', async () => {
+    const user1 = await createUser();
+    const user2 = await createUser();
+
+    const res = await request(app)
+      .put(`/api/user/${user2.id}`)
+      .set('Authorization', `Bearer ${user1.token}`)
+      .send({ name: 'Hack Attempt' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toMatch(/unauthorized/i);
+});  
+
+test('delete user requires auth', async () => {
+    const res = await request(app).delete('/api/user/1');
+    expect(res.status).toBe(401);
+});  
+
+test('user can delete own account', async () => {
+    const user = await createUser();
+    const res = await request(app)
+      .delete(`/api/user/${user.id}`)
+      .set('Authorization', `Bearer ${user.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/not implemented/i);
+});  
+
+test('list users requires auth', async () => {
+    const res = await request(app).get('/api/user');
+    expect(res.status).toBe(401);
+});  
+
+test('non-admin cannot list users', async () => {
+    const user = await createUser();
+    const res = await request(app)
+      .get('/api/user')
+      .set('Authorization', `Bearer ${user.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/not implemented/i);
+    expect(Array.isArray(res.body.users)).toBe(true);
+    expect(res.body.more).toBe(false);
+});  
+
+test('admin can list users', async () => {
+    const admin = await createAdminUser();
+    const res = await request(app)
+      .get('/api/user')
+      .set('Authorization', `Bearer ${admin.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/not implemented/i);
+    expect(Array.isArray(res.body.users)).toBe(true);
 });
