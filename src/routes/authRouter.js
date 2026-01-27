@@ -75,6 +75,11 @@ authRouter.put(
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
     const user = await DB.getUser(email, password);
+
+    if (!user) {
+      return res.status(401).json({ message: 'invalid credentials' });
+    }
+
     const auth = await setAuth(user);
     res.json({ user: user, token: auth });
   })
