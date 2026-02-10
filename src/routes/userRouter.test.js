@@ -108,6 +108,7 @@ test('list users', async () => {
   expect(listUsersRes.status).toBe(200);
 });
 
+// helper to register a user, possibly redundant?
 async function registerUser(service) {
   const testUser = {
     name: 'pizza diner',
