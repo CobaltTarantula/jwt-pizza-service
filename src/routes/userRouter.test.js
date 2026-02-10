@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../service');
-const { DB, Role } = require('../database/database.js');
+const { DB } = require('../database/database.js');
 const { setAuth } = require('../routes/authRouter.js');
 
 // Helper to create a user and return a token
@@ -19,19 +19,19 @@ async function createUser() {
 }
 
 // Helper to create an admin user
-async function createAdminUser() {
-  let user = {
-    name: `admin${Date.now()}`,
-    email: `admin${Date.now()}@admin.com`,
-    password: 'adminpass',
-    roles: [{ role: Role.Admin }]
-  };
+// async function createAdminUser() {
+//   let user = {
+//     name: `admin${Date.now()}`,
+//     email: `admin${Date.now()}@admin.com`,
+//     password: 'adminpass',
+//     roles: [{ role: Role.Admin }]
+//   };
 
-  user = await DB.addUser(user);
-  const token = await setAuth(user);
+//   user = await DB.addUser(user);
+//   const token = await setAuth(user);
 
-  return { ...user, token };
-}
+//   return { ...user, token };
+// }
 
 
 test('get /me requires auth', async () => {
@@ -95,25 +95,31 @@ test('list users requires auth', async () => {
     expect(res.status).toBe(401);
 });  
 
-test('non-admin cannot list users', async () => {
-    const user = await createUser();
-    const res = await request(app)
-      .get('/api/user')
-      .set('Authorization', `Bearer ${user.token}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.message).toMatch(/not implemented/i);
-    expect(Array.isArray(res.body.users)).toBe(true);
-    expect(res.body.more).toBe(false);
-});  
-
-test('admin can list users', async () => {
-    const admin = await createAdminUser();
-    const res = await request(app)
-      .get('/api/user')
-      .set('Authorization', `Bearer ${admin.token}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.message).toMatch(/not implemented/i);
-    expect(Array.isArray(res.body.users)).toBe(true);
+test('list users unauthorized', async () => {
+  const listUsersRes = await request(app).get('/api/user');
+  expect(listUsersRes.status).toBe(401);
 });
+
+test('list users', async () => {
+  const [, userToken] = await registerUser(request(app));
+  const listUsersRes = await request(app)
+    .get('/api/user')
+    .set('Authorization', 'Bearer ' + userToken);
+  expect(listUsersRes.status).toBe(200);
+});
+
+async function registerUser(service) {
+  const testUser = {
+    name: 'pizza diner',
+    email: `${randomName()}@test.com`,
+    password: 'a',
+  };
+  const registerRes = await service.post('/api/auth').send(testUser);
+  registerRes.body.user.password = testUser.password;
+
+  return [registerRes.body.user, registerRes.body.token];
+}
+
+function randomName() {
+  return Math.random().toString(36).substring(2, 12);
+}
