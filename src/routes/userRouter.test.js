@@ -34,6 +34,22 @@ async function createUser(overrides = {}) {
 //   return { ...user, token };
 // }
 
+// helper to register a user, possibly redundant?
+async function registerUser(service) {
+  const testUser = {
+    name: 'pizza diner',
+    email: `${randomName()}@test.com`,
+    password: 'a',
+  };
+  const registerRes = await service.post('/api/auth').send(testUser);
+  registerRes.body.user.password = testUser.password;
+
+  return [registerRes.body.user, registerRes.body.token];
+}
+
+function randomName() {
+  return Math.random().toString(36).substring(2, 12);
+}
 
 test('get /me requires auth', async () => {
     const res = await request(app).get('/api/user/me');
@@ -150,20 +166,3 @@ test('list users filter', async () => {
   expect(exactRes.body.users.length).toBe(1);
   expect(exactRes.body.users[0].name).toBe(aliceName);
 });
-
-// helper to register a user, possibly redundant?
-async function registerUser(service) {
-  const testUser = {
-    name: 'pizza diner',
-    email: `${randomName()}@test.com`,
-    password: 'a',
-  };
-  const registerRes = await service.post('/api/auth').send(testUser);
-  registerRes.body.user.password = testUser.password;
-
-  return [registerRes.body.user, registerRes.body.token];
-}
-
-function randomName() {
-  return Math.random().toString(36).substring(2, 12);
-}
