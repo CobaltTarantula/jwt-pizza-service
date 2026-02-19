@@ -82,13 +82,15 @@ userRouter.get(
   '/',
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
-    res.json({});
+    const users = await DB.listUsers();
+    res.json({ users });
   })
 );
 /*
 Return a list of users
 Handle the pagination of the list
 Handle the name filter
+Fix delete user
 */
 
 module.exports = userRouter;
