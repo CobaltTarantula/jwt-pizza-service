@@ -120,6 +120,32 @@ class DB {
     }
   }
 
+  async listUsers() {
+    const connection = await this.getConnection();
+    try {
+      const users = await this.query(
+        connection,
+        'SELECT id, name, email FROM user'
+      );
+
+      for (const user of users) {
+        const roles = await this.query(
+          connection,
+          'SELECT role, objectId FROM userRole WHERE userId=?',
+          [user.id]
+        );
+        user.roles = roles.map(r => ({
+          role: r.role,
+          objectId: r.objectId || undefined,
+        }));
+      }
+
+      return users;
+    } finally {
+      connection.end();
+    }
+  }
+
   async logoutUser(token) {
     token = this.getTokenSignature(token);
     const connection = await this.getConnection();
