@@ -114,8 +114,5 @@ userRouter.get(
     });
   })
 );
-/*
-Fix delete user
-*/
 
 module.exports = userRouter;
