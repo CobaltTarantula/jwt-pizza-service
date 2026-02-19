@@ -20,19 +20,19 @@ async function createUser(overrides = {}) {
 }
 
 // Helper to create an admin user
-// async function createAdminUser() {
-//   let user = {
-//     name: `admin${Date.now()}`,
-//     email: `admin${Date.now()}@admin.com`,
-//     password: 'adminpass',
-//     roles: [{ role: Role.Admin }]
-//   };
+async function createAdminUser() {
+  let user = {
+    name: `admin${Date.now()}`,
+    email: `admin${Date.now()}@admin.com`,
+    password: 'adminpass',
+    roles: [{ role: 'admin' }]
+  };
 
-//   user = await DB.addUser(user);
-//   const token = await setAuth(user);
+  user = await DB.addUser(user);
+  const token = await setAuth(user);
 
-//   return { ...user, token };
-// }
+  return { ...user, token };
+}
 
 // helper to register a user, possibly redundant?
 async function registerUser(service) {
@@ -99,13 +99,59 @@ test('delete user requires auth', async () => {
 
 test('user can delete own account', async () => {
   const user = await createUser();
+
+  // delete self
   const res = await request(app)
     .delete(`/api/user/${user.id}`)
     .set('Authorization', `Bearer ${user.token}`);
 
   expect(res.status).toBe(200);
   expect(res.body.message).toBe('User deleted');
-}); 
+
+  // attempt to log in again
+  // const loginRes = await request(app)
+  //   .post('/api/auth')
+  //   .send({
+  //     email: user.email,
+  //     password: 'userpass',
+  //   });
+
+  // expect(loginRes.status).toBe(401);
+});
+
+test('user cannot delete other account', async () => {
+  const user1 = await createUser();
+  const user2 = await createUser();
+
+  const res = await request(app)
+    .delete(`/api/user/${user2.id}`)
+    .set('Authorization', `Bearer ${user1.token}`);
+
+  expect(res.status).toBe(403);
+  expect(res.body.message).toMatch(/unauthorized/i);
+});
+
+test('admin can delete other account', async () => {
+  const admin = await createAdminUser();
+  const user = await createUser();
+
+  const res = await request(app)
+    .delete(`/api/user/${user.id}`)
+    .set('Authorization', `Bearer ${admin.token}`);
+
+  expect(res.status).toBe(200);
+  expect(res.body.message).toBe('User deleted');
+
+  // verify deleted user cannot log in
+  // const loginRes = await request(app)
+  //   .post('/api/auth')
+  //   .send({
+  //     email: user.email,
+  //     password: 'userpass',
+  //   });
+
+  // expect(loginRes.status).toBe(401);
+});
 
 test('list users requires auth', async () => {
     const res = await request(app).get('/api/user');

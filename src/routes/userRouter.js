@@ -76,8 +76,9 @@ userRouter.delete(
     const requestUserId = req.user.id;
     const targetUserId = Number(req.params.id);
 
-    // users may only delete themselves
-    if (requestUserId !== targetUserId) {
+    const isAdmin = req.user.roles?.some(r => r.role === 'admin');
+
+    if (requestUserId !== targetUserId && !isAdmin) {
       return res.status(403).json({
         message: 'Unauthorized to delete this user',
       });
