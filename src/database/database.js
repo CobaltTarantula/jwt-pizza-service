@@ -120,27 +120,46 @@ class DB {
     }
   }
 
-  async listUsers() {
+  async listUsers(page = 1, limit = 10, name = '*') {
     const connection = await this.getConnection();
     try {
+      const pageNum = parseInt(page, 10) || 1;
+      const limitNum = parseInt(limit, 10) || 10;
+      const offsetNum = (pageNum - 1) * limitNum;
+
+      const nameFilter = name.replace(/\*/g, '%');
+
+      // LIMIT and OFFSET must be directly in the query string
       const users = await this.query(
         connection,
-        'SELECT id, name, email FROM user'
+        `SELECT id, name, email 
+        FROM user 
+        WHERE name LIKE ? 
+        LIMIT ${limitNum} OFFSET ${offsetNum}`,
+        [nameFilter] // only the value placeholder
       );
 
       for (const user of users) {
-        const roles = await this.query(
-          connection,
-          'SELECT role, objectId FROM userRole WHERE userId=?',
-          [user.id]
-        );
-        user.roles = roles.map(r => ({
-          role: r.role,
-          objectId: r.objectId || undefined,
-        }));
+        try {
+          const roles = await this.query(
+            connection,
+            'SELECT role, objectId FROM userRole WHERE userId=?',
+            [user.id]
+          );
+          user.roles = roles.map(r => ({
+            role: r.role,
+            objectId: r.objectId || undefined,
+          }));
+        } catch (err) {
+          console.error(`Failed to get roles for user ${user.id}:`, err);
+          user.roles = [];
+        }
       }
 
       return users;
+    } catch (err) {
+      console.error('Error in listUsers:', err);
+      throw err;
     } finally {
       connection.end();
     }

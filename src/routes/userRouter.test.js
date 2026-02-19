@@ -120,6 +120,17 @@ test('list users returns users', async () => {
   expect(res.body.users[0]).toHaveProperty('email');
 });
 
+test('list users paginated', async () => {
+  const [, token] = await registerUser(request(app));
+
+  const res = await request(app)
+    .get('/api/user?page=1&limit=1')
+    .set('Authorization', 'Bearer ' + token);
+
+  expect(res.status).toBe(200);
+  expect(res.body.users.length).toBeLessThanOrEqual(1);
+});
+
 // helper to register a user, possibly redundant?
 async function registerUser(service) {
   const testUser = {
