@@ -45,3 +45,55 @@ test('register', async () => {
   delete expectedUser.password;
   expect(registerRes.body.user).toMatchObject(expectedUser);
 });
+
+describe('Auth negative tests', () => {
+  test('register fails with missing fields', async () => {
+    // Missing password
+    const res1 = await request(app).post('/api/auth').send({
+      name: 'NoPass User',
+      email: 'nopass@test.com',
+    });
+    expect(res1.status).toBe(400);
+    expect(res1.body.message).toMatch(/name, email, and password are required/i);
+
+    // Missing email
+    const res2 = await request(app).post('/api/auth').send({
+      name: 'NoEmail User',
+      password: 'abc',
+    });
+    expect(res2.status).toBe(400);
+    expect(res2.body.message).toMatch(/name, email, and password are required/i);
+  });
+
+  test('login fails with invalid credentials', async () => {
+    // Nonexistent user
+    const res1 = await request(app).put('/api/auth').send({
+      email: 'fakeuser@test.com',
+      password: 'abc',
+    });
+    expect(res1.status).toBe(401);
+    expect(res1.body.message).toMatch(/invalid credentials/i);
+
+    // Wrong password
+    const res2 = await request(app).put('/api/auth').send({
+      email: testUser.email,
+      password: 'wrongpassword',
+    });
+    expect(res2.status).toBe(401);
+    expect(res2.body.message).toMatch(/invalid credentials/i);
+  });
+
+  test('logout fails without token', async () => {
+    const res = await request(app).delete('/api/auth');
+    expect(res.status).toBe(401);
+    expect(res.body.message).toMatch(/unauthorized/i);
+  });
+
+  test('logout fails with invalid token', async () => {
+    const res = await request(app)
+      .delete('/api/auth')
+      .set('Authorization', 'Bearer invalid.token.here');
+    expect(res.status).toBe(401);
+    expect(res.body.message).toMatch(/unauthorized/i);
+  });
+});

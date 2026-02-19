@@ -74,14 +74,21 @@ authRouter.put(
   '/',
   asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    const user = await DB.getUser(email, password);
+    try {
+      const user = await DB.getUser(email, password);
 
-    if (!user) {
-      return res.status(401).json({ message: 'invalid credentials' });
+      // If getUser succeeds, return token
+      const auth = await setAuth(user);
+      res.json({ user, token: auth });
+    } catch (err) {
+      // Convert "unknown user" or bad password into 401 Unauthorized
+      if (err.statusCode === 404 || err.message === 'unknown user') {
+        return res.status(401).json({ message: 'invalid credentials' });
+      }
+
+      // rethrow any other unexpected errors
+      throw err;
     }
-
-    const auth = await setAuth(user);
-    res.json({ user: user, token: auth });
   })
 );
 
