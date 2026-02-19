@@ -4,12 +4,13 @@ const { DB } = require('../database/database.js');
 const { setAuth } = require('../routes/authRouter.js');
 
 // Helper to create a user and return a token
-async function createUser() {
+async function createUser(overrides = {}) {
   let user = {
     name: `user${Date.now()}`,
     email: `user${Date.now()}@test.com`,
     password: 'userpass',
-    roles: []
+    roles: [],
+    ...overrides
   };
 
   user = await DB.addUser(user);
@@ -129,6 +130,25 @@ test('list users paginated', async () => {
 
   expect(res.status).toBe(200);
   expect(res.body.users.length).toBeLessThanOrEqual(1);
+});
+
+test('list users filter', async () => {
+  const uniqueId = Date.now();
+  const aliceName = `Alice-${uniqueId}`;
+
+  const alice = await createUser({
+    name: aliceName,
+    email: `alice-${uniqueId}@jwt.com`
+  });
+
+  const exactRes = await request(app)
+    .get('/api/user')
+    .query({ name: aliceName })
+    .set('Authorization', `Bearer ${alice.token}`);
+
+  expect(exactRes.status).toBe(200);
+  expect(exactRes.body.users.length).toBe(1);
+  expect(exactRes.body.users[0].name).toBe(aliceName);
 });
 
 // helper to register a user, possibly redundant?

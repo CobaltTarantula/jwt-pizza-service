@@ -87,14 +87,13 @@ userRouter.get(
     const name = req.query.name || '*';
 
     const users = await DB.listUsers(page, limit, name);
-
-    res.json({ users });
+    res.json({
+      users,
+      more: users.length === limit
+    });
   })
 );
 /*
-Return a list of users
-Handle the pagination of the list
-Handle the name filter
 Fix delete user
 */
 

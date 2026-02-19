@@ -129,16 +129,19 @@ class DB {
 
       const nameFilter = name.replace(/\*/g, '%');
 
-      // LIMIT and OFFSET must be directly in the query string
       const users = await this.query(
         connection,
-        `SELECT id, name, email 
-        FROM user 
-        WHERE name LIKE ? 
-        LIMIT ${limitNum} OFFSET ${offsetNum}`,
-        [nameFilter] // only the value placeholder
+        `
+        SELECT id, name, email
+        FROM user
+        WHERE name LIKE ?
+        ORDER BY name
+        LIMIT ${limitNum} OFFSET ${offsetNum}
+        `,
+        [nameFilter]
       );
-
+      
+      // Attach roles
       for (const user of users) {
         try {
           const roles = await this.query(
