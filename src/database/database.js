@@ -55,6 +55,29 @@ class DB {
     }
   }
 
+  async deleteUser(userId) {
+    const connection = await this.getConnection();
+    try {
+      // remove roles first (FK safety)
+      await this.query(
+        connection,
+        'DELETE FROM userRole WHERE userId=?',
+        [userId]
+      );
+
+      // remove user
+      const result = await this.query(
+        connection,
+        'DELETE FROM user WHERE id=?',
+        [userId]
+      );
+
+      return result.affectedRows === 1;
+    } finally {
+      connection.end();
+    }
+  }
+
   async getUser(email, password) {
     const connection = await this.getConnection();
     try {
@@ -140,7 +163,7 @@ class DB {
         `,
         [nameFilter]
       );
-      
+
       // Attach roles
       for (const user of users) {
         try {

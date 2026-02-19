@@ -70,10 +70,30 @@ userRouter.put(
 
 // deleteUser
 userRouter.delete(
-  '/:userId',
+  '/:id',
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
-    res.json({ message: 'not implemented' });
+    const requestUserId = req.user.id;
+    const targetUserId = Number(req.params.id);
+
+    // users may only delete themselves
+    if (requestUserId !== targetUserId) {
+      return res.status(403).json({
+        message: 'Unauthorized to delete this user',
+      });
+    }
+
+    const deleted = await DB.deleteUser(targetUserId);
+
+    if (!deleted) {
+      return res.status(404).json({
+        message: 'User not found',
+      });
+    }
+
+    res.json({
+      message: 'User deleted',
+    });
   })
 );
 

@@ -82,14 +82,14 @@ test('delete user requires auth', async () => {
 });  
 
 test('user can delete own account', async () => {
-    const user = await createUser();
-    const res = await request(app)
-      .delete(`/api/user/${user.id}`)
-      .set('Authorization', `Bearer ${user.token}`);
+  const user = await createUser();
+  const res = await request(app)
+    .delete(`/api/user/${user.id}`)
+    .set('Authorization', `Bearer ${user.token}`);
 
-    expect(res.status).toBe(200);
-    expect(res.body.message).toMatch(/not implemented/i);
-});  
+  expect(res.status).toBe(200);
+  expect(res.body.message).toBe('User deleted');
+}); 
 
 test('list users requires auth', async () => {
     const res = await request(app).get('/api/user');
