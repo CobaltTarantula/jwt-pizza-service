@@ -108,9 +108,6 @@ jobs:
         with:
           name: package
           path: dist/
-      
-      - name: Who am I?
-        run: aws sts get-caller-identity
 
       - name: Push to AWS S3
         run: |
