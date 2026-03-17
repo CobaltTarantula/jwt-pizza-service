@@ -403,7 +403,6 @@ class DB {
       try {
         const dbExists = await this.checkDatabaseExists(connection);
         console.log(dbExists ? 'Database exists' : 'Database does not exist, creating it');
-        console.log('new update');
 
         await connection.query(`CREATE DATABASE IF NOT EXISTS ${config.db.connection.database}`);
         await connection.query(`USE ${config.db.connection.database}`);
