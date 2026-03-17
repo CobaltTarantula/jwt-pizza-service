@@ -43,14 +43,6 @@ function pizzaPurchase(success, latency, price, count) {
   pizzaCount++;
 }
 
-// Metrics stored in memory
-let greetingChangedCount = 0;
-
-// Function to track when the greeting is changed
-function greetingChanged() {
-  greetingChangedCount++;
-}
-
 const methodCounts = {
   GET: 0,
   POST: 0,
@@ -80,28 +72,31 @@ setInterval(() => {
   const avgPizzaLatency = pizzaCount ? pizzaLatency / pizzaCount : 0;
   const avgEndpointLatency = endpointCount ? endpointLatency / endpointCount : 0;
 
+  // HTTP requests by method/minute
   Object.keys(methodCounts).forEach((method) => {
     metrics.push(createMetric('http_requests', methodCounts[method], '1', 'sum', 'asInt', { method }));
   });
-
   metrics.push(createMetric('http_requests_total', totalRequests, '1', 'sum', 'asInt', {}));
 
-  metrics.push(createMetric('greetingChange', greetingChangedCount, '1', 'sum', 'asInt', {}));
-
-  // System metrics
+  // CPU and memory usage percentage
   metrics.push(createMetric('cpu', getCpuUsagePercentage(), '%', 'gauge', 'asDouble', {}));
   metrics.push(createMetric('memory', getMemoryUsagePercentage(), '%', 'gauge', 'asDouble', {}));
-  metrics.push(createMetric('endpoint_latency', avgEndpointLatency, 'ms', 'gauge', 'asDouble', {}));
 
+  // Latency
+  metrics.push(createMetric('endpoint_latency', avgEndpointLatency, 'ms', 'gauge', 'asDouble', {}));
+  metrics.push(createMetric('pizza_latency', avgPizzaLatency, 'ms', 'gauge', 'asDouble', {}));
+
+  //  Authentication attempts/minute
   metrics.push(createMetric('auth_success', authSuccess, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('auth_failure', authFailure, '1', 'sum', 'asInt', {}));
 
+  // Active users
   metrics.push(createMetric('active_users', activeUsers.size, '1', 'gauge', 'asInt', {}));
 
+  // Pizzas
   metrics.push(createMetric('pizza_success', pizzaSuccess, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizza_failure', pizzaFailure, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizzas_made', pizzasMade, '1', 'sum', 'asInt', {}));
-  metrics.push(createMetric('pizza_latency', avgPizzaLatency, 'ms', 'gauge', 'asDouble', {}));
   metrics.push(createMetric('pizza_revenue', pizzaRevenue, 'usd', 'sum', 'asDouble', {}));
 
   sendMetricToGrafana(metrics);
@@ -212,4 +207,4 @@ function trackUser(req, res, next) {
   next();
 }
 
-module.exports = { requestTracker, greetingChanged, pizzaPurchase, authAttempt, trackUser };
+module.exports = { requestTracker, pizzaPurchase, authAttempt, trackUser };
