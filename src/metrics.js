@@ -1,10 +1,34 @@
 const config = require('./config');
 
+/*
+REQS:
+  HTTP requests by method/minute
+    Total requests
+    GET, PUT, POST, and DELETE requests
+  Active users
+  Authentication attempts/minute
+    Successful
+    Failed
+  CPU and memory usage percentage
+  Pizzas
+    Sold/minute
+    Creation failures
+    Revenue/minute
+  Latency
+    Service endpoint
+    Pizza creation
+*/
+
 let pizzaSuccess = 0;
 let pizzaFailure = 0;
 let pizzasMade = 0;
+let pizzaCount = 0;
 let pizzaLatency = 0;
 let pizzaRevenue = 0;
+let authSuccess = 0;
+let authFailure = 0;
+let endpointCount = 0;
+let endpointLatency = 0;
 
 function pizzaPurchase(success, latency, price, count) {
   if (success) {
@@ -16,10 +40,10 @@ function pizzaPurchase(success, latency, price, count) {
   }
 
   pizzaLatency += latency;
+  pizzaCount++;
 }
 
 // Metrics stored in memory
-const requests = {};
 let greetingChangedCount = 0;
 
 // Function to track when the greeting is changed
@@ -27,34 +51,73 @@ function greetingChanged() {
   greetingChangedCount++;
 }
 
+const methodCounts = {
+  GET: 0,
+  POST: 0,
+  PUT: 0,
+  DELETE: 0,
+};
+
 // Middleware to track requests
 function requestTracker(req, res, next) {
-  const endpoint = `[${req.method}] ${req.path}`;
-  requests[endpoint] = (requests[endpoint] || 0) + 1;
+  const start = Date.now();
+
+  methodCounts[req.method] = (methodCounts[req.method] || 0) + 1;
+
+  res.on('finish', () => {
+    const latency = Date.now() - start;
+    endpointLatency += latency;
+    endpointCount++;
+  });
+
   next();
 }
 
 // This will periodically send metrics to Grafana
 setInterval(() => {
   const metrics = [];
+  const totalRequests = Object.values(methodCounts).reduce((a, b) => a + b, 0);
+  const avgPizzaLatency = pizzaCount ? pizzaLatency / pizzaCount : 0;
+  const avgEndpointLatency = endpointCount ? endpointLatency / endpointCount : 0;
 
-  Object.keys(requests).forEach((endpoint) => {
-    metrics.push(createMetric('requests', requests[endpoint], '1', 'sum', 'asInt', { endpoint }));
+  Object.keys(methodCounts).forEach((method) => {
+    metrics.push(createMetric('http_requests', methodCounts[method], '1', 'sum', 'asInt', { method }));
   });
+
+  metrics.push(createMetric('http_requests_total', totalRequests, '1', 'sum', 'asInt', {}));
 
   metrics.push(createMetric('greetingChange', greetingChangedCount, '1', 'sum', 'asInt', {}));
 
   // System metrics
   metrics.push(createMetric('cpu', getCpuUsagePercentage(), '%', 'gauge', 'asDouble', {}));
   metrics.push(createMetric('memory', getMemoryUsagePercentage(), '%', 'gauge', 'asDouble', {}));
+  metrics.push(createMetric('endpoint_latency', avgEndpointLatency, 'ms', 'gauge', 'asDouble', {}));
+
+  metrics.push(createMetric('auth_success', authSuccess, '1', 'sum', 'asInt', {}));
+  metrics.push(createMetric('auth_failure', authFailure, '1', 'sum', 'asInt', {}));
+
+  metrics.push(createMetric('active_users', activeUsers.size, '1', 'gauge', 'asInt', {}));
 
   metrics.push(createMetric('pizza_success', pizzaSuccess, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizza_failure', pizzaFailure, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizzas_made', pizzasMade, '1', 'sum', 'asInt', {}));
-  metrics.push(createMetric('pizza_latency', pizzaLatency, 'ms', 'sum', 'asDouble', {}));
+  metrics.push(createMetric('pizza_latency', avgPizzaLatency, 'ms', 'gauge', 'asDouble', {}));
   metrics.push(createMetric('pizza_revenue', pizzaRevenue, 'usd', 'sum', 'asDouble', {}));
 
   sendMetricToGrafana(metrics);
+
+  pizzaSuccess = 0;
+  pizzaFailure = 0;
+  pizzasMade = 0;
+  pizzaCount = 0;
+  pizzaLatency = 0;
+  pizzaRevenue = 0;
+  authSuccess = 0;
+  authFailure = 0;
+  endpointLatency = 0;
+  endpointCount = 0;
+
+  Object.keys(methodCounts).forEach((m) => (methodCounts[m] = 0));
 }, 10000);
 
 function createMetric(metricName, metricValue, metricUnit, metricType, valueType, attributes) {
@@ -132,4 +195,21 @@ function getMemoryUsagePercentage() {
   return Number(memoryUsage.toFixed(2));
 }
 
-module.exports = { requestTracker, greetingChanged, pizzaPurchase };
+function authAttempt(success) {
+  if (success) {
+    authSuccess++;
+  } else {
+    authFailure++;
+  }
+}
+
+const activeUsers = new Set();
+
+function trackUser(req, res, next) {
+  if (req.user && req.user.id) {
+    activeUsers.add(req.user.id);
+  }
+  next();
+}
+
+module.exports = { requestTracker, greetingChanged, pizzaPurchase, authAttempt, trackUser };
