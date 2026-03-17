@@ -4,8 +4,8 @@ const { DB, Role } = require('../database/database.js');
 const { authRouter, setAuth } = require('./authRouter.js');
 
 const userRouter = express.Router();
-// const metrics = require('../metrics.js');
-// userRouter.use(metrics.requestTracker);
+const metrics = require('../metrics.js');
+userRouter.use(metrics.requestTracker);
 
 userRouter.docs = [
   {

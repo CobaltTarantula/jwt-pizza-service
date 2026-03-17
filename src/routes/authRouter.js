@@ -5,8 +5,8 @@ const { asyncHandler } = require('../endpointHelper.js');
 const { DB, Role } = require('../database/database.js');
 
 const authRouter = express.Router();
-// const metrics = require('../metrics.js');
-// authRouter.use(metrics.requestTracker);
+const metrics = require('../metrics.js');
+authRouter.use(metrics.requestTracker);
 
 authRouter.docs = [
   {
@@ -63,9 +63,11 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
+      metrics.authAttempt(false);
       return res.status(400).json({ message: 'name, email, and password are required' });
     }
     const user = await DB.addUser({ name, email, password, roles: [{ role: Role.Diner }] });
+    metrics.authAttempt(true);
     const auth = await setAuth(user);
     res.json({ user: user, token: auth });
   })
@@ -79,12 +81,16 @@ authRouter.put(
     try {
       const user = await DB.getUser(email, password);
 
+      metrics.authAttempt(true);
+
       // If getUser succeeds, return token
       const auth = await setAuth(user);
       res.json({ user, token: auth });
     } catch (err) {
       // Convert "unknown user" or bad password into 401 Unauthorized
       if (err.statusCode === 404 || err.message === 'unknown user') {
+        metrics.authAttempt(false);
+        
         return res.status(401).json({ message: 'invalid credentials' });
       }
 
