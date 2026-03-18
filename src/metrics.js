@@ -148,7 +148,6 @@ function createMetric(metricName, metricValue, metricUnit, metricType, valueType
 }
 
 function sendMetricToGrafana(metrics) {
-  console.log("Sending metrics:", JSON.stringify(metrics, null, 2));
   const body = {
     resourceMetrics: [
       {
