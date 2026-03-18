@@ -97,7 +97,7 @@ setInterval(() => {
   metrics.push(createMetric('pizza_success', pizzaSuccess, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizza_failure', pizzaFailure, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizzas_made', pizzasMade, '1', 'sum', 'asInt', {}));
-  metrics.push(createMetric('pizza_revenue', pizzaRevenue, 'usd', 'sum', 'asDouble', {}));
+  metrics.push(createMetric('pizza_revenue_usd_total', pizzaRevenue, 'usd', 'sum', 'asDouble', {}));
 
   sendMetricToGrafana(metrics);
 
