@@ -29,6 +29,7 @@ let authSuccess = 0;
 let authFailure = 0;
 let endpointCount = 0;
 let endpointLatency = 0;
+let totalRequests = 0;
 
 function pizzaPurchase(success, latency, price, count) {
   if (success) {
@@ -55,6 +56,7 @@ function requestTracker(req, res, next) {
   const start = Date.now();
 
   methodCounts[req.method] = (methodCounts[req.method] || 0) + 1;
+  totalRequests++; // cumulative
 
   res.on('finish', () => {
     const latency = Date.now() - start;
@@ -68,9 +70,18 @@ function requestTracker(req, res, next) {
 // This will periodically send metrics to Grafana
 setInterval(() => {
   const metrics = [];
-  const totalRequests = Object.values(methodCounts).reduce((a, b) => a + b, 0);
+  // const totalRequests = Object.values(methodCounts).reduce((a, b) => a + b, 0);
   const avgPizzaLatency = pizzaCount ? pizzaLatency / pizzaCount : 0;
   const avgEndpointLatency = endpointCount ? endpointLatency / endpointCount : 0;
+
+  const now = Date.now();
+  const FIVE_MIN = 5 * 60 * 1000;
+
+  for (const [userId, lastSeen] of activeUsers.entries()) {
+    if (now - lastSeen > FIVE_MIN) {
+      activeUsers.delete(userId);
+    }
+  }
 
   // HTTP requests by method/minute
   Object.keys(methodCounts).forEach((method) => {
@@ -106,13 +117,13 @@ setInterval(() => {
   pizzasMade = 0;
   pizzaCount = 0;
   pizzaLatency = 0;
-  pizzaRevenue = 0;
+  // pizzaRevenue = 0;
   authSuccess = 0;
   authFailure = 0;
   endpointLatency = 0;
   endpointCount = 0;
 
-  Object.keys(methodCounts).forEach((m) => (methodCounts[m] = 0));
+  // Object.keys(methodCounts).forEach((m) => (methodCounts[m] = 0));
 }, 30000);
 
 function createMetric(metricName, metricValue, metricUnit, metricType, valueType, attributes) {
@@ -199,11 +210,11 @@ function authAttempt(success) {
   }
 }
 
-const activeUsers = new Set();
+const activeUsers = new Map();
 
 function trackUser(req, res, next) {
   if (req.user && req.user.id) {
-    activeUsers.add(req.user.id);
+    activeUsers.set(req.user.id, Date.now()); // store lastSeen
   }
   next();
 }
