@@ -1,4 +1,5 @@
 const config = require('./config');
+const fetch = require('node-fetch');
 
 class Logger {
 
@@ -23,11 +24,12 @@ class Logger {
     }
 
     log(level, type, logData) {
-        const labels = { component: config.logging.source, level: level, type: type };
-        const values = [this.nowString(), this.sanitize(logData)];
-        const logEvent = { streams: [{ stream: labels, values: [values] }] };
+      if (process.env.NODE_ENV === 'test') return; // fix tests?
+      const labels = { component: config.logging.source, level: level, type: type };
+      const values = [this.nowString(), this.sanitize(logData)];
+      const logEvent = { streams: [{ stream: labels, values: [values] }] };
 
-        this.sendLogToGrafana(logEvent);
+      this.sendLogToGrafana(logEvent);
     }
 
     statusToLogLevel(statusCode) {

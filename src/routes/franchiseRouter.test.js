@@ -78,6 +78,15 @@ test('admin can create store', async () => {
   storeId = res.body.id;
 });
 
+test('non-admin cannot create store', async () => {
+  const res = await request(app)
+    .post(`/api/franchise/${franchiseId}/store`)
+    .set('Authorization', `Bearer ${dinerToken}`)
+    .send({ name: 'SLC' });
+
+  expect(res.status).toBe(403);
+});
+
 test('non-admin cannot delete store', async () => {
   const res = await request(app)
     .delete(`/api/franchise/${franchiseId}/store/${storeId}`)
@@ -96,5 +105,39 @@ test('admin can delete store', async () => {
 
 test('delete franchise does NOT require auth (bug)', async () => {
   const res = await request(app).delete(`/api/franchise/${franchiseId}`);
+  expect(res.status).toBe(200);
+});
+
+test('user can get their own franchises', async () => {
+  const res = await request(app)
+    .get(`/api/franchise/${adminUser.id}`)
+    .set('Authorization', `Bearer ${adminToken}`);
+
+  expect(res.status).toBe(200);
+  expect(Array.isArray(res.body)).toBe(true);
+});
+
+test('user cannot get another user’s franchises', async () => {
+  const res = await request(app)
+    .get(`/api/franchise/${adminUser.id}`)
+    .set('Authorization', `Bearer ${dinerToken}`);
+
+  expect(res.status).toBe(200);
+  expect(res.body).toEqual([]); // important branch
+});
+
+test('list franchises with query params', async () => {
+  const res = await request(app)
+    .get('/api/franchise?page=0&limit=5&name=*');
+
+  expect(res.status).toBe(200);
+  expect(res.body.franchises).toBeDefined();
+});
+
+test('admin can get another user’s franchises', async () => {
+  const res = await request(app)
+    .get(`/api/franchise/${adminUser.id}`)
+    .set('Authorization', `Bearer ${adminToken}`);
+
   expect(res.status).toBe(200);
 });
