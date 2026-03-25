@@ -8,6 +8,8 @@ const orderRouter = express.Router();
 const metrics = require('../metrics.js');
 orderRouter.use(metrics.requestTracker);
 
+const logger = require('../logger');
+
 orderRouter.docs = [
   {
     method: 'GET',
@@ -83,23 +85,41 @@ orderRouter.post(
 
     const orderReq = req.body;
     const order = await DB.addDinerOrder(req.user, orderReq);
+
+    const factoryReqBody = {
+      diner: { id: req.user.id, name: req.user.name, email: req.user.email },
+      order,
+    };
+
     const r = await fetch(`${config.factory.url}/api/order`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', authorization: `Bearer ${config.factory.apiKey}` },
-      body: JSON.stringify({ diner: { id: req.user.id, name: req.user.name, email: req.user.email }, order }),
+      headers: {
+        'Content-Type': 'application/json',
+        authorization: `Bearer ${config.factory.apiKey}`,
+      },
+      body: JSON.stringify(factoryReqBody),
+    });
+
+    const factoryResBody = await r.json();
+
+    logger.log('info', 'factory', {
+      url: `${config.factory.url}/api/order`,
+      requestBody: JSON.stringify(factoryReqBody),
+      responseBody: JSON.stringify(factoryResBody),
+      statusCode: r.status,
+      durationMs: Date.now() - start,
     });
 
     const latency = Date.now() - start;
     const pizzaCount = order.items.length;
     const price = order.items.reduce((sum, item) => sum + item.price, 0);
 
-    const j = await r.json();
     if (r.ok) {
       metrics.pizzaPurchase(true, latency, price, pizzaCount);
-      res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
+      res.send({ order, followLinkToEndChaos: factoryResBody.reportUrl, jwt: factoryResBody.jwt });
     } else {
       metrics.pizzaPurchase(false, latency, 0, 0);
-      res.status(500).send({ message: 'Failed to fulfill order at factory', followLinkToEndChaos: j.reportUrl });
+      res.status(500).send({ message: 'Failed to fulfill order at factory', followLinkToEndChaos: factoryResBody.reportUrl });
     }
   })
 );

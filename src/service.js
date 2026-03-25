@@ -1,5 +1,6 @@
 const express = require('express');
 const metrics = require('./metrics');
+const logger = require('./logger');
 const { authRouter, setAuthUser } = require('./routes/authRouter.js');
 const orderRouter = require('./routes/orderRouter.js');
 const franchiseRouter = require('./routes/franchiseRouter.js');
@@ -9,6 +10,9 @@ const config = require('./config.js');
 
 const app = express();
 app.use(express.json());
+
+app.use(logger.httpLogger);
+
 app.use(setAuthUser);
 app.use(metrics.trackUser);
 app.use((req, res, next) => {
@@ -49,7 +53,19 @@ app.use('*', (req, res) => {
 
 // Default error handler for all exceptions and errors.
 app.use((err, req, res, next) => {
-  res.status(err.statusCode ?? 500).json({ message: err.message, stack: err.stack });
+  const logData = {
+    authorized: !!req.headers.authorization,
+    path: req.originalUrl,
+    method: req.method,
+    statusCode: err.statusCode ?? 500,
+    reqBody: JSON.stringify(req.body),
+    errorMessage: err.message,
+    stack: err.stack,
+  };
+
+  logger.log('error', 'exception', logData);
+
+  res.status(err.statusCode ?? 500).json({ message: err.message });
   next();
 });
 
