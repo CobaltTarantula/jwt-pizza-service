@@ -82,6 +82,10 @@ orderRouter.put(
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
     if (req.user.isRole(Role.Admin)) {
+      const latency = 0;
+      const price = 0;
+      const count = 0;
+      metrics.pizzaPurchase(false, latency, price, count); // log failure
       enableChaos = req.params.state === 'true';
     }
 
