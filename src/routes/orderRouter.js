@@ -82,10 +82,6 @@ orderRouter.put(
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
     if (req.user.isRole(Role.Admin)) {
-      const latency = 0;
-      const price = 0;
-      const count = 0;
-      metrics.pizzaPurchase(false, latency, price, count); // log failure
       enableChaos = req.params.state === 'true';
     }
 
@@ -95,6 +91,10 @@ orderRouter.put(
 
 orderRouter.post('/', (req, res, next) => {
   if (enableChaos && Math.random() < 0.5) {
+    const latency = 0;
+    const price = 0;
+    const count = 0;
+    metrics.pizzaPurchase(false, latency, price, count); // log failure
     throw new StatusCodeError('Chaos monkey', 500);
   }
   next();
@@ -149,3 +149,5 @@ orderRouter.post(
 );
 
 module.exports = orderRouter;
+
+// run in dev, and connect in Grafana for pizza failures. place breakpoints
